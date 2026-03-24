@@ -1,1 +1,3 @@
-df=read.csv("instagram_users_lifestyle.csv")
+
+
+df=read_rds('./clean_df.rds')
