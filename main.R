@@ -1,5 +1,6 @@
 library(tidyverse)
-df=read_rds(file = clean_df)
+df <- read_rds("./clean_df.rds")
+
 threshold <- quantile(df$user_engagement_score, 0.75, na.rm = TRUE)
 
 df <- df %>% 
