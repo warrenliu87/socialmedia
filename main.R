@@ -106,3 +106,7 @@ df <- df %>%
       TRUE ~ NA_real_
     )
   )
+
+
+# Saving the cleaned df
+saveRDS(df, "./clean_df.rds")
