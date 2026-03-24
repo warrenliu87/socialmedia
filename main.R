@@ -1,5 +1,5 @@
 library(tidyverse)
-df=read.csv("instagram_users_lifestyle.csv")
+df=read_rds(file = clean_df)
 threshold <- quantile(df$user_engagement_score, 0.75, na.rm = TRUE)
 
 df <- df %>% 
