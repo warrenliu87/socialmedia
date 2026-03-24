@@ -3,4 +3,4 @@
 .RData
 .Ruserdata
 instagram_users_lifestyle.csv
-clean_df
+clean_df.rds
