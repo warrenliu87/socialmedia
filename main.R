@@ -1,1 +1,2 @@
-df=read.csv("instagram_users_lifestyle.csv")
+library('tidyverse')
+df = read_rds('./clean_df.rds')
