@@ -7,7 +7,7 @@ df <- df %>%
   mutate(
     gender_bin = case_when(
       str_to_lower(gender) == "male" ~ 1,
-      str_to_lower(gender) == "female" ~ 0,
+      str_to_lower(gender) != "male" ~ 0,
       TRUE ~ NA_real_
     ),
     education_clean = education_level %>%
