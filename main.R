@@ -1,7 +1,8 @@
+library(tidyverse)
 df=read.csv("instagram_users_lifestyle.csv")
 threshold <- quantile(df$user_engagement_score, 0.75, na.rm = TRUE)
 
-df <- df %>%
+df <- df %>% 
   mutate(high_engagement_user = ifelse(user_engagement_score >= threshold, 1, 0))
 set.seed(123)
 
