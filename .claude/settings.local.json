@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -E '\\\\.\\(R|r|rds|csv\\)$')",
+      "Bash(Rscript main.R)",
+      "Bash(tasklist)",
+      "Bash(Rscript -e \"df <- readRDS\\(''clean_df.rds''\\); cat\\(''Dimensions:'', nrow\\(df\\), ''rows,'', ncol\\(df\\), ''columns\\\\n''\\); cat\\(''Column names:\\\\n''\\); print\\(names\\(df\\)\\)\")"
+    ]
+  }
+}
