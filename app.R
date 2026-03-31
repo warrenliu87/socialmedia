@@ -2,12 +2,19 @@ library(shiny)
 library(bslib)
 library(tidyverse)
 library(pROC)
+library(plotly)
+library(scales)
 
-# 1. Load resources
+# ==========================================
+# 1. LOAD RESOURCES & SETUP
+# ==========================================
 model <- readRDS("model_ctr.rds")
 df <- readRDS("clean_df.rds")
 
-# 2. Setup average user template
+# Instagram Branding Colors
+instagram_cols <- c(pink="#E1306C", purple="#C13584", orange="#F77737", yellow="#FCAF45", blue="#405DE6")
+
+# Setup average user template
 avg_user <- df[1, ]
 for (col in names(df)) {
   if (is.numeric(df[[col]])) {
@@ -17,151 +24,233 @@ for (col in names(df)) {
   }
 }
 
-# 3. UI Definition
+# ==========================================
+# 2. UI DEFINITION
+# ==========================================
 ui <- navbarPage(
   title = "Social Media Analytics",
-  theme = bs_theme(bootswatch = "quartz"),
+  theme = bs_theme(bootswatch = "quartz", primary = "#00d1b2"),
   
   header = tags$head(
     tags$style(HTML("
-      .selectize-input, .form-control { 
-        background: rgba(255, 255, 255, 0.1) !important; 
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        color: white !important;
-        box-shadow: none !important;
-      }
-      .selectize-dropdown { 
-        background-color: #484c7a !important; 
-        color: white !important;
-        z-index: 99999 !important;
-        position: absolute !important;
-      }
-      .selectize-dropdown .active {
-        background-color: #6269ab !important;
-        color: white !important;
-      }
       .wellPanel { 
-        margin-bottom: 20px !important; 
-        min-height: 280px; 
-        overflow: visible !important; 
+        background: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        padding: 20px;
+        border-radius: 8px;
+        height: 100%;
       }
-      #first-row { 
-        position: relative; 
-        z-index: 100; 
-      }
-      #second-row { 
-        position: relative; 
-        z-index: 1; 
-        margin-top: 60px !important; 
-      }
-      h1 { font-size: 70px; font-weight: bold; margin-top: 30px; }
-      h4 { font-weight: bold; margin-bottom: 15px; }
-      .btn-primary { background-color: #00d1b2 !important; border: none; }
+      h1 { font-size: 50px; font-weight: bold; }
+      .btn-primary { background: linear-gradient(45deg, #405DE6, #E1306C) !important; border: none; color: white; }
+      .btn-secondary { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; }
     "))
   ),
   
+  # --- TAB 1: PREDICTION MODEL ---
   tabPanel("Prediction Model",
            fluidPage(
-             column(12, align = "center", 
-                    h1("CTR predictor"),
-                    p("Estimate a user's Click-Through Rate", 
-                      style = "font-size: 1.2em; opacity: 0.8;"),
-                    hr(style = "margin-bottom: 40px;")
+             column(12, align = "center", h1("CTR Predictor"), hr(style="margin-bottom: 30px;")),
+             
+             fluidRow(
+               column(4, wellPanel(
+                 h4("Demographics"),
+                 numericInput("age", "Age", value = 25, min = 13, max = 90),
+                 selectInput("country", "Country", choices = c("Spain", "United States", "United Kingdom", "Germany", "Brazil", "India", "Other")),
+                 selectInput("gender", "Gender", choices = list("Male" = 1, "Female/Other" = 0))
+               )),
+               column(4, wellPanel(
+                 h4("Socio-economics"),
+                 selectInput("income", "Income Level", choices = list("Low" = 0, "Lower-middle" = 1, "Middle" = 2, "Upper-middle" = 3, "High" = 4), selected = 2),
+                 selectInput("employment", "Employment", choices = unique(df$employment_status))
+               )),
+               column(4, wellPanel(
+                 h4("Social and family"),
+                 radioButtons("children", "Has children?", choices = list("Yes" = 1, "No" = 0), inline = TRUE),
+                 selectInput("education", "Education level", choices = list(
+                   "Other" = 0, "Secondary" = 1, "High School" = 2, 
+                   "Some College" = 3, "Bachelor" = 4, "Masters" = 5, "PhD" = 6
+                 ))
+               ))
              ),
              
-             div(id = "first-row",
-                 fluidRow(
-                   column(4, wellPanel(
-                     h4("Demographics"),
-                     numericInput("age", "Age", value = 25, min = 13, max = 90),
-                     selectInput("country", "Country", 
-                                 choices = c("Spain", "United States", "United Kingdom", "Germany", 
-                                             "Canada", "Brazil", "India", "Japan", "South Korea", "Other")),
-                     selectInput("gender", "Gender", choices = list("Male" = 1, "Female/Other" = 0))
-                   )),
-                   column(4, wellPanel(
-                     h4("Socio-economics"),
-                     selectInput("income", "Income Level", choices = list("Low" = 0, "Mid" = 2, "High" = 4)),
-                     selectInput("employment", "Employment", choices = unique(df$employment_status))
-                   )),
-                   column(4, wellPanel(
-                     h4("Social and family"),
-                     radioButtons("children", "Has children?", choices = list("Yes" = 1, "No" = 0), inline = TRUE),
-                     selectInput("education", "Education level", choices = unique(df$education_level))
-                   ))
-                 )
+             div(style = "height: 40px;"),
+             
+             fluidRow(
+               column(6, wellPanel(
+                 h4("Instagram habits"),
+                 sliderInput("ig_min", "Daily minutes on IG", 0, 600, 120),
+                 sliderInput("engagement", "Engagement score (1-10)", 0, 10, 5),
+                 numericInput("followers", "Followers count", 500)
+               )),
+               column(6, wellPanel(
+                 h4("Lifestyle"),
+                 sliderInput("sleep", "Sleep hours", 0, 12, 7, step = 0.5),
+                 sliderInput("stress", "Stress level (1-10)", 1, 10, 5)
+               ))
              ),
              
-             div(id = "second-row",
-                 fluidRow(
-                   column(6, wellPanel(
-                     h4("Instagram habits"),
-                     sliderInput("ig_min", "Daily minutes on IG", 0, 600, 60),
-                     sliderInput("engagement", "Engagement score (1-10)", 0, 10, 5),
-                     numericInput("followers", "Followers count", 500)
-                   )),
-                   column(6, wellPanel(
-                     h4("Lifestyle"),
-                     sliderInput("sleep", "Sleep hours", 0, 12, 7, step = 0.5),
-                     sliderInput("stress", "Stress level (1-10)", 1, 10, 5)
-                   ))
-                 )
-             ),
+             div(style = "height: 40px;"),
              
              fluidRow(
                column(12, align = "center",
-                      actionButton("go", "Analyze", class = "btn-lg btn-primary", 
-                                   style = "width: 40%; margin-top: 30px; margin-bottom: 50px; font-weight: bold;")
+                      actionButton("go", "Analyze Predictor", class = "btn-lg btn-primary", style = "width: 40%; margin-bottom: 50px;")
                )
              )
            )
   ),
   
+  # --- TAB 2: VISUALIZATIONS ---
   tabPanel("Visualizations",
-           fluidPage(
-             column(12, align = "center",
-                    hr()
+           page_sidebar(
+             sidebar = sidebar(
+               title = "Dashboard Controls",
+               actionButton("sync", "Plot Specific User", icon = icon("crosshairs"), class = "btn-primary mb-2"),
+               actionButton("reset", "Reset Visualizations", icon = icon("undo"), class = "btn-secondary mb-4"),
+               hr(),
+               h5("Current View:"),
+               uiOutput("view_status"),
+               helpText("Use the buttons above to toggle between showing the entire dataset and pinpointing the exact user you built in the Predictor tab.")
+             ),
+             layout_column_wrap(
+               width = 1,
+               card(
+                 card_header("Sleep vs IG Usage"),
+                 plotlyOutput("sleep_plot")
+               ),
+               layout_column_wrap(
+                 width = 1/2,
+                 card(card_header("Engagement Heatmap"), plotlyOutput("heatmap_plot")),
+                 card(card_header("Follower Dynamics"), plotlyOutput("growth_plot"))
+               )
              )
            )
   )
 )
 
-# 4. Server Logic
+# ==========================================
+# 3. SERVER LOGIC
+# ==========================================
 server <- function(input, output, session) {
   
+  # --- UI State Tracking ---
+  # "all" = show regular graphs. "specific" = show the predicted user point.
+  view_state <- reactiveVal("all")
+  
+  observeEvent(input$sync, { view_state("specific") })
+  observeEvent(input$reset, { view_state("all") })
+  
+  # Render the status text in the sidebar
+  output$view_status <- renderUI({
+    if (view_state() == "all") {
+      HTML("<span style='color: #a0aec0;'>Showing All Demographic Data</span>")
+    } else {
+      HTML("<span style='color: #00d1b2; font-weight: bold;'>Highlighting Predicted User</span>")
+    }
+  })
+  
+  # --- Data Assembly ---
+  # Capture the exact user built in Tab 1
+  predicted_user <- reactive({
+    u <- avg_user
+    u$age <- input$age
+    u$income_num <- as.numeric(input$income)
+    u$sleep_hours_per_night <- input$sleep
+    u$daily_active_minutes_instagram <- input$ig_min
+    u$followers_count <- input$followers
+    u$user_engagement_score <- input$engagement
+    u$perceived_stress_score <- input$stress
+    u
+  })
+  
+  # --- Prediction Logic ---
   observeEvent(input$go, {
-    user_data <- avg_user
-    
-    user_data$age <- input$age
+    user_data <- predicted_user()
     user_data$gender_bin <- as.numeric(input$gender)
-    
-    valid_countries <- c("Brazil", "Canada", "Germany", "India", "Japan", "South Korea", "United Kingdom", "United States")
-    user_data$country <- if(input$country %in% valid_countries) input$country else "Other"
-    
-    user_data$income_num <- as.numeric(input$income)
-    user_data$employment_status <- input$employment
-    user_data$education_level <- input$education
-    user_data$daily_active_minutes_instagram <- input$ig_min
-    user_data$user_engagement_score <- input$engagement
-    user_data$followers_count <- input$followers
-    user_data$sleep_hours_per_night <- input$sleep
-    user_data$perceived_stress_score <- input$stress
+    user_data$education_num <- as.numeric(input$education)
     
     prob <- predict(model, newdata = user_data, type = "response")
     prob_pct <- round(prob * 100, 1)
     
     showModal(modalDialog(
       title = "Prediction Results",
-      size = "m",
-      easyClose = TRUE,
-      footer = modalButton("Close"),
-      div(style = "text-align: center; padding: 20px;",
-          h3("Ad Engagement Probability"),
-          h1(paste0(prob_pct, "%"), style = "color: #00d1b2; font-weight: bold; font-size: 90px;"),
-          p("Likelihood of this user clicking on an Instagram ad.")
-      )
+      div(style="text-align:center", h1(paste0(prob_pct, "%"), style="color:#00d1b2; font-size:80px;"), p("Ad Engagement Probability")),
+      easyClose = TRUE
     ))
+  })
+  
+  # --- Plot Renderers ---
+  
+  # 1. Scatter: Sleep vs IG
+  output$sleep_plot <- renderPlotly({
+    d_bg <- df %>% slice_sample(n = 3000)
+    
+    # Base plot with background data
+    p <- ggplot() + 
+      geom_point(data = d_bg, aes(x = sleep_hours_per_night, y = daily_active_minutes_instagram), 
+                 color = "lightgrey", alpha = 0.3, size = 1) +
+      theme_minimal() +
+      labs(x = "Sleep Hours", y = "Daily IG Minutes", color = "Stress")
+    
+    if (view_state() == "all") {
+      # Show all data colored normally
+      p <- p + geom_point(data = d_bg, aes(x = sleep_hours_per_night, y = daily_active_minutes_instagram, color = perceived_stress_score), alpha = 0.6) +
+        scale_color_gradientn(colors = c(instagram_cols["yellow"], instagram_cols["pink"], instagram_cols["purple"]))
+    } else {
+      # Show only the specific user point on top of grey background
+      p <- p + geom_point(data = predicted_user(), aes(x = sleep_hours_per_night, y = daily_active_minutes_instagram), 
+                          color = instagram_cols["pink"], size = 6)
+    }
+    
+    ggplotly(p)
+  })
+  
+  # 2. Heatmap: Demographic Engagement
+  output$heatmap_plot <- renderPlotly({
+    p_data <- df %>%
+      mutate(age_group = cut(age, breaks=c(0,25,45,65,Inf), labels=c("GenZ", "Millennial", "GenX", "Senior"))) %>%
+      group_by(age_group, income_num) %>%
+      summarise(avg_eng = mean(user_engagement_score, na.rm=T), .groups="drop")
+    
+    p <- ggplot(p_data, aes(x=factor(income_num), y=age_group, fill=avg_eng)) +
+      geom_tile(color="white") + 
+      scale_fill_gradientn(colors=c(instagram_cols["blue"], instagram_cols["pink"])) + 
+      theme_minimal() +
+      labs(x = "Income Level (0=Low, 4=High)", y = "Age Group", fill = "Avg Eng.")
+    
+    if (view_state() == "specific") {
+      # Calculate where the user belongs
+      u_age_group <- cut(predicted_user()$age, breaks=c(0,25,45,65,Inf), labels=c("GenZ", "Millennial", "GenX", "Senior"))
+      u_income <- factor(predicted_user()$income_num, levels=0:4)
+      
+      # Draw a distinct border around their specific demographic tile
+      p <- p + geom_tile(data = data.frame(income_num=u_income, age_group=u_age_group), 
+                         aes(x=income_num, y=age_group), 
+                         color = "#00d1b2", fill = NA, size = 1.5, inherit.aes = FALSE)
+    }
+    
+    ggplotly(p)
+  })
+  
+  # 3. Scatter: Follower Dynamics
+  output$growth_plot <- renderPlotly({
+    d_bg <- df %>% slice_sample(n = 2000)
+    
+    p <- ggplot() +
+      geom_point(data = d_bg, aes(x = following_count, y = followers_count), 
+                 color = "lightgrey", alpha = 0.3, size = 1) +
+      theme_minimal() +
+      labs(x = "Following", y = "Followers", color = "Engagement")
+    
+    if (view_state() == "all") {
+      p <- p + geom_point(data = d_bg, aes(x = following_count, y = followers_count, color = user_engagement_score), alpha = 0.6) +
+        scale_color_gradientn(colors = c("#405DE6", "#833AB4", "#E1306C", "#F77737", "#FCAF45"))
+    } else {
+      p <- p + geom_point(data = predicted_user(), aes(x = following_count, y = followers_count), 
+                          color = instagram_cols["blue"], size = 6)
+    }
+    
+    ggplotly(p)
   })
 }
 
-shinyApp(ui, server)
+shinyApp(ui = ui, server = server)
