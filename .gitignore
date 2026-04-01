@@ -2,7 +2,6 @@
 .Rhistory
 .RData
 .Ruserdata
-<<<<<<< HEAD
-=======
+.DS_Store
 instagram_users_lifestyle.csv
->>>>>>> a92dd87b85992592bea7052505ff5fb360819418
+*.rds
